@@ -13,7 +13,7 @@ public enum BleDeviceState {
 
 public typealias BleDeviceStateChangedBlock = ((BleDevice, BleDeviceState) -> ())
 
-public class BleDevice: NSObject, CBPeripheralDelegate {
+open class BleDevice: NSObject, CBPeripheralDelegate {
 
     public let uuid: UUID
     public let name: String
@@ -60,7 +60,7 @@ public class BleDevice: NSObject, CBPeripheralDelegate {
 
     func connect() {
         if peripheral.state != .connected {
-            BleManager.instance.connect(self)
+            Blem.instance.connect(self)
         }
     }
     

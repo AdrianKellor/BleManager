@@ -10,9 +10,9 @@ import UIKit
 
 // params: periperal, advertisementData, rssi
 
-public class BleManager: NSObject {
+public class Blem: NSObject {
     
-    public static let instance = BleManager()
+    public static let instance = Blem()
     
     private var manager: CBCentralManager!
     private var managerIsStarting = false
@@ -64,7 +64,7 @@ public class BleManager: NSObject {
     
 }
 
-extension BleManager: CBCentralManagerDelegate {
+extension Blem: CBCentralManagerDelegate {
 
     // manager
     

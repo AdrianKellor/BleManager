@@ -36,11 +36,11 @@ public actor BleScanner: NSObject {
 
     private var state = ScanState.waiting
     
-    private var manager: BleManager
+    private var manager: Blem
     private let seconds: Int
     internal let services: [CBUUID]
 
-    init(manager: BleManager, seconds: Int, services: [CBUUID]) {
+    init(manager: Blem, seconds: Int, services: [CBUUID]) {
         self.manager = manager
         self.seconds = seconds
         self.services = services
@@ -79,17 +79,17 @@ public actor BleScanner: NSObject {
     private var onFinishedClosure: (() -> ())?
     private var onFailedClosure: (() -> ())?
 
-    func onDiscover(_ closure: @escaping (BleDevice) -> ()) -> Self {
+    public func onDiscover(_ closure: @escaping (BleDevice) -> ()) -> Self {
         onDiscoverClosure = closure
         return self
     }
 
-    func onFinished(_ closure: @escaping () -> ()) -> Self {
+    public func onFinished(_ closure: @escaping () -> ()) -> Self {
         onFinishedClosure = closure
         return self
     }
 
-    func onFailed(_ closure: @escaping () -> ()) -> Self {
+    public func onFailed(_ closure: @escaping () -> ()) -> Self {
         onFailedClosure = closure
         return self
     }
@@ -98,7 +98,7 @@ public actor BleScanner: NSObject {
     
     // public functions
     
-    func stop() async {
+    public func stop() async {
         switch(state) {
         case .waiting, .scanning:
             await manager.endCurrentScan(self)
@@ -108,7 +108,7 @@ public actor BleScanner: NSObject {
         state = .stopped
     }
     
-    func start() async {
+    public func start() async {
         await manager.startScanning(scanner: self)
     }
     
