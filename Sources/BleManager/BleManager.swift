@@ -6,13 +6,13 @@
 
 import Foundation
 import CoreBluetooth
-import PromiseKit
+import UIKit
 
 // params: periperal, advertisementData, rssi
 
-class BleManager: NSObject {
+public class BleManager: NSObject {
     
-    static let instance = BleManager()
+    public static let instance = BleManager()
     
     private var manager: CBCentralManager!
     private var managerIsStarting = false
@@ -68,14 +68,14 @@ extension BleManager: CBCentralManagerDelegate {
 
     // manager
     
-    func centralManagerDidUpdateState(_ central: CBCentralManager) {
+    public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         // TODO: needs to handle active scanner
         managerIsStarting = false
     }
 
     // Scanning
 
-    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
+    public func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
         Task {
             if let scanner = activeScanner {
                 let bleDevice = await deviceList.findOrAdd(peripheral: peripheral,
@@ -113,19 +113,19 @@ extension BleManager: CBCentralManagerDelegate {
     // Connections
 
 
-    func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+    public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         Task.init {
             await deviceList.find(uuid: peripheral.identifier.uuidString)?.newState(.connected)
         }
     }
     
-    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+    public func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         Task.init {
             await deviceList.find(uuid: peripheral.identifier.uuidString)?.newState(.disconnected)
         }
     }
     
-    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+    public func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
         Task.init {
             await deviceList.find(uuid: peripheral.identifier.uuidString)?.newState(.failedToConnect)
         }
@@ -163,7 +163,7 @@ fileprivate actor BleDeviceList {
 }
 
 //fileprivate actor BleScannerList {
-//    
+//
 //    let queue = DispatchQueue(label: UUID().uuidString, qos: .utility)
 //    var scanners = [BleScanner]()
 //

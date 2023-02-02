@@ -6,7 +6,6 @@
 
 import Foundation
 import CoreBluetooth
-import PromiseKit
 
 
 class BleScan {
@@ -31,9 +30,9 @@ fileprivate enum ScanState {
     case waiting, scanning, stopped, failed;
 }
 
-typealias DeviceCreator = (CBPeripheral, [String: Any], NSNumber) -> BleDevice?
+public typealias DeviceCreator = (CBPeripheral, [String: Any], NSNumber) -> BleDevice?
 
-actor BleScanner: NSObject {
+public actor BleScanner: NSObject {
 
     private var state = ScanState.waiting
     
