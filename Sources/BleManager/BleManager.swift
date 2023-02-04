@@ -88,25 +88,29 @@ extension Blem: CBCentralManagerDelegate {
     }
 
     internal func connect(_ device: BleDevice) {
-        if managerIsStarting {
-            device.newState(.bleNotAvailable)
-            return
-        }
-        
-        if device.peripheral.state == .disconnected {
-            manager.connect(device.peripheral)
-            device.newState(.connecting)
+        Task.init {
+            if managerIsStarting {
+                await device.newState(.bleNotAvailable)
+                return
+            }
+            
+            if device.peripheral.state == .disconnected {
+                manager.connect(device.peripheral)
+                await device.newState(.connecting)
+            }
         }
     }
     
     internal func disconnect(_ device: BleDevice) {
-        if managerIsStarting {
-            device.newState(.bleNotAvailable)
-            return
-        }
-        
-        if device.peripheral.state == .connected {
-            manager.cancelPeripheralConnection(device.peripheral)
+        Task.init {
+            if managerIsStarting {
+                await device.newState(.bleNotAvailable)
+                return
+            }
+            
+            if device.peripheral.state == .connected {
+                manager.cancelPeripheralConnection(device.peripheral)
+            }
         }
     }
     
