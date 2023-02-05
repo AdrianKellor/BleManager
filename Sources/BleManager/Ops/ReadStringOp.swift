@@ -8,7 +8,7 @@
 import Foundation
 import CoreBluetooth
 
-public class ReadStringOp: BleDeviceOp {
+public class ReadStringOp: BlemDeviceOp {
     
     private let uuid: CBUUID
     private let closure: (String?, String?) -> ()
@@ -18,20 +18,20 @@ public class ReadStringOp: BleDeviceOp {
         self.closure = closure
     }
     
-    override public func status(_ device: BleDevice, _ status: BleOpStatus) {
-        switch(status) {
-
-        case .nowActive:
-            if let char = device.characteristic(uuid) {
-                device.peripheral.readValue(for: char)
-            }
-            
-        case .complete, .deviceDisconnected, .deviceFailedToConnect, .bleNotEnabled:
-            break;
+    public override func start(_ device: BlemDevice) -> BlemOpResponse {
+        if let char = device.characteristic(uuid) {
+            device.peripheral.readValue(for: char)
+            return .ok
+        } else {
+            return .complete
         }
     }
     
-    override public func peripheral(_ device: BleDevice, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) -> BleOpResponse {
+    public override func abort(_ device: BlemDevice, _ reason: BlemOpAbortReason) {
+        // do nothing
+    }
+    
+    override public func peripheral(_ device: BlemDevice, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) -> BlemOpResponse {
         guard let value = characteristic.value else {
             return .complete
         }

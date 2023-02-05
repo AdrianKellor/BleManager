@@ -31,13 +31,13 @@ public class Blem: NSObject {
         
     }
     
-    var activeScanner: BleScanner?
+    var activeScanner: BlemScanner?
     
-    public func newScanner(seconds: Int, services: [CBUUID]) -> BleScanner {
-        return BleScanner(manager: self, seconds: seconds, services: services)
+    public func newScanner(seconds: Int, services: [CBUUID]) -> BlemScanner {
+        return BlemScanner(manager: self, seconds: seconds, services: services)
     }
     
-    internal func startScanning(scanner: BleScanner) async {
+    internal func startScanning(scanner: BlemScanner) async {
         // stop current scan
         manager?.stopScan()
         await activeScanner?.finished()
@@ -53,7 +53,7 @@ public class Blem: NSObject {
         await activeScanner?.startedScanning()
     }
     
-    internal func endCurrentScan(_ scanner: BleScanner) async {
+    internal func endCurrentScan(_ scanner: BlemScanner) async {
         // TODO, add a safety to shutdown scanning if running too long
         if let active = activeScanner, active === scanner {
             await activeScanner?.finished()
@@ -87,7 +87,7 @@ extension Blem: CBCentralManagerDelegate {
         }
     }
 
-    internal func connect(_ device: BleDevice) {
+    internal func connect(_ device: BlemDevice) {
         Task.init {
             if managerIsStarting {
                 await device.newState(.bleNotAvailable)
@@ -101,7 +101,7 @@ extension Blem: CBCentralManagerDelegate {
         }
     }
     
-    internal func disconnect(_ device: BleDevice) {
+    internal func disconnect(_ device: BlemDevice) {
         Task.init {
             if managerIsStarting {
                 await device.newState(.bleNotAvailable)
@@ -142,9 +142,9 @@ extension Blem: CBCentralManagerDelegate {
 fileprivate actor BleDeviceList {
     
     private let queue = DispatchQueue(label: UUID().uuidString, qos: .utility)
-    private var devices = [BleDevice]()
+    private var devices = [BlemDevice]()
     
-    func findOrAdd(peripheral: CBPeripheral, advertisementData: [String : Any], rssi: NSNumber, scanner: BleScanner) async -> BleDevice {
+    func findOrAdd(peripheral: CBPeripheral, advertisementData: [String : Any], rssi: NSNumber, scanner: BlemScanner) async -> BlemDevice {
         if let found = self.devices.first(where: { device in
             device.uuid.uuidString.lowercased() == peripheral.identifier.uuidString.lowercased()
         } ) {
@@ -156,7 +156,7 @@ fileprivate actor BleDeviceList {
         }
     }
     
-    func find(uuid: String) async -> BleDevice? {
+    func find(uuid: String) async -> BlemDevice? {
         if let found = self.devices.first(where: { device in device.uuid.uuidString.lowercased() == uuid.lowercased() } ) {
             return found
         } else {

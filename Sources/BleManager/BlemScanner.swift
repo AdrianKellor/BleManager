@@ -8,33 +8,33 @@ import Foundation
 import CoreBluetooth
 
 
-class BleScan {
-    
-    typealias onDiscoverType = (BleDevice) -> ()
-    typealias onStopType     = () -> ()
+//class BleScan {
+//
+//    typealias onDiscoverType = (BlemDevice) -> ()
+//    typealias onStopType     = () -> ()
+//
+//    internal var onDiscoverClosure: onDiscoverType?
+//    internal var onStop: onStopType?
+//
+//    internal func found(device: BlemDevice, advertisementData: [String: Any]) {
+//        onDiscoverClosure?(device)
+//    }
+//
+//    internal func stopped() {
+//        onStop?()
+//    }
+//
+//}
 
-    internal var onDiscoverClosure: onDiscoverType?
-    internal var onStop: onStopType?
-    
-    internal func found(device: BleDevice, advertisementData: [String: Any]) {
-        onDiscoverClosure?(device)
-    }
-    
-    internal func stopped() {
-        onStop?()
-    }
-    
-}
-
-fileprivate enum ScanState {
+fileprivate enum BlemScanState {
     case waiting, scanning, stopped, failed;
 }
 
-public typealias DeviceCreator = (CBPeripheral, [String: Any], NSNumber) -> BleDevice?
+public typealias BlemDeviceCreator = (CBPeripheral, [String: Any], NSNumber) -> BlemDevice?
 
-public actor BleScanner: NSObject {
+public actor BlemScanner: NSObject {
 
-    private var state = ScanState.waiting
+    private var state = BlemScanState.waiting
     
     private var manager: Blem
     private let seconds: Int
@@ -58,28 +58,28 @@ public actor BleScanner: NSObject {
 
     // New device creation
     
-    private var discoveryCreatorClosure: DeviceCreator?
+    private var discoveryCreatorClosure: BlemDeviceCreator?
     
-    public func onDiscoveryCreator(_ closure: @escaping DeviceCreator) -> Self {
+    public func onDiscoveryCreator(_ closure: @escaping BlemDeviceCreator) -> Self {
         discoveryCreatorClosure = closure
         return self
     }
 
-    internal func createDevice(_ peripheral: CBPeripheral, _ advertisementData: [String : Any], _ rssi: NSNumber) -> BleDevice {
+    internal func createDevice(_ peripheral: CBPeripheral, _ advertisementData: [String : Any], _ rssi: NSNumber) -> BlemDevice {
         if let newDevice = discoveryCreatorClosure?(peripheral, advertisementData, rssi) {
             return newDevice
         } else {
-            return BleDevice(peripheral: peripheral, advertisementData: advertisementData, rssi: rssi)
+            return BlemDevice(peripheral: peripheral, advertisementData: advertisementData, rssi: rssi)
         }
     }
 
     // Callbacks
     
-    private var onDiscoverClosure: ((BleDevice) -> ())?
+    private var onDiscoverClosure: ((BlemDevice) -> ())?
     private var onFinishedClosure: (() -> ())?
     private var onFailedClosure: (() -> ())?
 
-    public func onDiscover(_ closure: @escaping (BleDevice) -> ()) -> Self {
+    public func onDiscover(_ closure: @escaping (BlemDevice) -> ()) -> Self {
         onDiscoverClosure = closure
         return self
     }
@@ -127,7 +127,7 @@ public actor BleScanner: NSObject {
         }
     }
     
-    internal func discovered(device: BleDevice) {
+    internal func discovered(device: BlemDevice) {
         if let discoverClosure = onDiscoverClosure {
             discoverClosure(device)
         }

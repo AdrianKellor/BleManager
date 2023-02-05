@@ -7,13 +7,13 @@
 import Foundation
 import CoreBluetooth
 
-public enum BleDeviceState {
+public enum BlemDeviceState {
     case connected, connecting, disconnected, failedToConnect, bleNotAvailable
 }
 
-public typealias BleDeviceStateChangedBlock = ((BleDevice, BleDeviceState) -> ())
+public typealias BlemDeviceStateChangedBlock = ((BlemDevice, BlemDeviceState) -> ())
 
-open class BleDevice: NSObject, CBPeripheralDelegate {
+open class BlemDevice: NSObject, CBPeripheralDelegate {
 
     public let uuid: UUID
     public let name: String
@@ -26,7 +26,7 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
     internal let peripheral: CBPeripheral
 
     private let queue = BleOpQueue()
-    private var onStateChangedBlock: BleDeviceStateChangedBlock?
+    private var onStateChangedBlock: BlemDeviceStateChangedBlock?
     
     public init(peripheral: CBPeripheral, advertisementData: [String : Any], rssi: NSNumber) {
         self.peripheral = peripheral
@@ -42,7 +42,11 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
         return characteristics.filter { char in char.uuid == uuid }.first
     }
     
-    internal func newState(_ newState: BleDeviceState) async {
+    public func onStateChanged(_ closure: @escaping BlemDeviceStateChangedBlock) {
+        onStateChangedBlock = closure
+    }
+    
+    internal func newState(_ newState: BlemDeviceState) async {
         switch newState {
         case .connected:
             await queue.pushOpFront(DiscoverServicesOp())
@@ -51,34 +55,26 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
         case .connecting:
             break; // do nothing
         case .disconnected:
-            await queue.getCurrentOp()?.status(self, .deviceDisconnected)
+            while await queue.count() > 0 {
+                await queue.getCurrentOp()?.abort(self, .disconnected)
+                _ = await queue.popCurrentOp()
+            }
             onStateChangedBlock?(self, newState)
         case .failedToConnect:
-            await queue.getCurrentOp()?.status(self, .deviceFailedToConnect)
+            while await queue.count() > 0 {
+                await queue.getCurrentOp()?.abort(self, .failedToConnect)
+                _ = await queue.popCurrentOp()
+            }
             onStateChangedBlock?(self, newState)
         case .bleNotAvailable:
-            await queue.getCurrentOp()?.status(self, .bleNotEnabled)
+            while await queue.count() > 0 {
+                await queue.getCurrentOp()?.abort(self, .bleNotAvailable)
+                _ = await queue.popCurrentOp()
+            }
             onStateChangedBlock?(self, newState)
         }
     }
     
-    public func readValue(for char: CBCharacteristic) {
-        peripheral.readValue(for: char)
-    }
-    
-    public func onStateChanged(_ closure: @escaping BleDeviceStateChangedBlock) {
-        onStateChangedBlock = closure
-    }
-    
-    public func queueOp(_ op: BleDeviceOp) async {
-        await queue.pushOp(op)
-        if peripheral.state != .connected {
-            connect()
-        } else if await queue.count() == 1 {
-            await startNextOp()
-        }
-    }
-
     public func connect() {
         if peripheral.state != .connected {
             Blem.instance.connect(self)
@@ -90,16 +86,35 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
             Blem.instance.disconnect(self)
         }
     }
+
+    // MARK: Ops
     
     private func startNextOp() async {
-        await queue.getCurrentOp()?.status(self, .nowActive)
+        while await queue.getCurrentOp()?.start(self) == .complete {
+            _ = await queue.popCurrentOp()
+        }
     }
     
-    // TODO: move delegate methods into a separate class to keep these methods internal
+    public func queueOp(_ op: BlemDeviceOp) async {
+        await queue.pushOp(op)
+        if peripheral.state != .connected {
+            connect()
+        } else if await queue.count() == 1 {
+            await startNextOp()
+        }
+    }
+
+    // MARK: peripheral input delegate methods
+    
+    public func readValue(for char: CBCharacteristic) {
+        peripheral.readValue(for: char)
+    }
+    
+    // MARK: peripheral output delegate methods
+    
     public func peripheralDidUpdateName(_ peripheral: CBPeripheral) {
         Task.init {
             if let result = await queue.getCurrentOp()?.peripheralDidUpdateName(self), result == .complete {
-                await queue.popCurrentOp()?.status(self, .complete)
                 await startNextOp()
             }
         }
@@ -108,7 +123,6 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
     public func peripheral(_ peripheral: CBPeripheral, didModifyServices invalidatedServices: [CBService]) {
         Task.init {
             if let result = await queue.getCurrentOp()?.peripheral(self, didModifyServices: invalidatedServices), result == .complete {
-                await queue.popCurrentOp()?.status(self, .complete)
                 await startNextOp()
             }
         }
@@ -117,7 +131,6 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
     public func peripheralDidUpdateRSSI(_ peripheral: CBPeripheral, error: Error?) {
         Task.init {
             if let result = await queue.getCurrentOp()?.peripheralDidUpdateRSSI(self, error: error), result == .complete {
-                await queue.popCurrentOp()?.status(self, .complete)
                 await startNextOp()
             }
         }
@@ -126,7 +139,6 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
     public func peripheral(_ peripheral: CBPeripheral, didReadRSSI RSSI: NSNumber, error: Error?) {
         Task.init {
             if let result = await queue.getCurrentOp()?.peripheral(self, didReadRSSI: RSSI, error: error), result == .complete {
-                await queue.popCurrentOp()?.status(self, .complete)
                 await startNextOp()
             }
         }
@@ -135,7 +147,6 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
     public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         Task.init {
             if let result = await queue.getCurrentOp()?.peripheral(self, didDiscoverServices: error), result == .complete {
-                await queue.popCurrentOp()?.status(self, .complete)
                 await startNextOp()
             }
         }
@@ -144,7 +155,6 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
     public func peripheral(_ peripheral: CBPeripheral, didDiscoverIncludedServicesFor service: CBService, error: Error?) {
         Task.init {
             if let result = await queue.getCurrentOp()?.peripheral(self, didDiscoverIncludedServicesFor: service, error: error), result == .complete {
-                await queue.popCurrentOp()?.status(self, .complete)
                 await startNextOp()
             }
         }
@@ -153,7 +163,6 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
     public func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
         Task.init {
             if let result = await queue.getCurrentOp()?.peripheral(self, didDiscoverCharacteristicsFor: service, error: error), result == .complete {
-                await queue.popCurrentOp()?.status(self, .complete)
                 await startNextOp()
             }
         }
@@ -162,7 +171,6 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
     public func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         Task.init {
             if let result = await queue.getCurrentOp()?.peripheral(self, didUpdateValueFor: characteristic, error: error), result == .complete {
-                await queue.popCurrentOp()?.status(self, .complete)
                 await startNextOp()
             }
         }
@@ -171,7 +179,6 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
     public func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
         Task.init {
             if let result = await queue.getCurrentOp()?.peripheral(self, didWriteValueFor: characteristic, error: error), result == .complete {
-                await queue.popCurrentOp()?.status(self, .complete)
                 await startNextOp()
             }
         }
@@ -180,7 +187,6 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
     public func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
         Task.init {
             if let result = await queue.getCurrentOp()?.peripheral(self, didUpdateNotificationStateFor: characteristic, error: error), result == .complete {
-                await queue.popCurrentOp()?.status(self, .complete)
                 await startNextOp()
             }
         }
@@ -189,7 +195,6 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
     public func peripheral(_ peripheral: CBPeripheral, didDiscoverDescriptorsFor characteristic: CBCharacteristic, error: Error?) {
         Task.init {
             if let result = await queue.getCurrentOp()?.peripheral(self, didDiscoverDescriptorsFor: characteristic, error: error), result == .complete {
-                await queue.popCurrentOp()?.status(self, .complete)
                 await startNextOp()
             }
         }
@@ -198,7 +203,6 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
     public func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor descriptor: CBDescriptor, error: Error?) {
         Task.init {
             if let result = await queue.getCurrentOp()?.peripheral(self, didUpdateValueFor: descriptor, error: error), result == .complete {
-                await queue.popCurrentOp()?.status(self, .complete)
                 await startNextOp()
             }
         }
@@ -207,7 +211,6 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
     public func peripheral(_ peripheral: CBPeripheral, didWriteValueFor descriptor: CBDescriptor, error: Error?) {
         Task.init {
             if let result = await queue.getCurrentOp()?.peripheral(self, didWriteValueFor: descriptor, error: error), result == .complete {
-                await queue.popCurrentOp()?.status(self, .complete)
                 await startNextOp()
             }
         }
@@ -216,7 +219,6 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
     public func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral) {
         Task.init {
             if let result = await queue.getCurrentOp()?.peripheralIsReady(self, toSendWriteWithoutResponse: peripheral), result == .complete {
-                await queue.popCurrentOp()?.status(self, .complete)
                 await startNextOp()
             }
         }
@@ -225,7 +227,6 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
     public func peripheral(_ peripheral: CBPeripheral, didOpen channel: CBL2CAPChannel?, error: Error?) {
         Task.init {
             if let result = await queue.getCurrentOp()?.peripheral(self, didOpen: channel, error: error), result == .complete {
-                await queue.popCurrentOp()?.status(self, .complete)
                 await startNextOp()
             }
         }
@@ -235,25 +236,25 @@ open class BleDevice: NSObject, CBPeripheralDelegate {
 
 
 fileprivate actor BleOpQueue {
-    var ops = [BleDeviceOp]()
+    var ops = [BlemDeviceOp]()
     
     func count() async -> Int {
         return ops.count
     }
     
-    func pushOpFront(_ op: BleDeviceOp) async {
+    func pushOpFront(_ op: BlemDeviceOp) async {
         ops.append(op)
     }
     
-    func pushOp(_ op: BleDeviceOp) async {
+    func pushOp(_ op: BlemDeviceOp) async {
         ops.append(op)
     }
     
-    func getCurrentOp() async -> BleDeviceOp? {
+    func getCurrentOp() async -> BlemDeviceOp? {
         ops.first
     }
     
-    func popCurrentOp() async -> BleDeviceOp? {
+    func popCurrentOp() async -> BlemDeviceOp? {
         if !ops.isEmpty {
             return ops.remove(at: 0)
         } else {
