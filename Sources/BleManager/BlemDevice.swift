@@ -1,5 +1,5 @@
 //
-//  BleDevice.swift
+//  BlemDevice.swift
 //
 //  Created by Adrian Kellor on 2/1/2023.
 //
@@ -19,14 +19,13 @@ open class BlemDevice: NSObject, CBPeripheralDelegate {
     public let name: String
     public var rssi: NSNumber
     public internal(set) var advertisementData: [String : Any]
-    
     public var autoDiscoverServices: [CBUUID]?
 
     internal var characteristics = [CBCharacteristic]()
     internal let peripheral: CBPeripheral
 
     private let queue = BleOpQueue()
-    private var onStateChangedBlock: BlemDeviceStateChangedBlock?
+    private var onStateChangedClosure: BlemDeviceStateChangedBlock?
     
     public init(peripheral: CBPeripheral, advertisementData: [String : Any], rssi: NSNumber) {
         self.peripheral = peripheral
@@ -42,15 +41,17 @@ open class BlemDevice: NSObject, CBPeripheralDelegate {
         return characteristics.filter { char in char.uuid == uuid }.first
     }
     
+    // MARK: State / Connection
+    
     public func onStateChanged(_ closure: @escaping BlemDeviceStateChangedBlock) {
-        onStateChangedBlock = closure
+        onStateChangedClosure = closure
     }
     
     internal func newState(_ newState: BlemDeviceState) async {
         switch newState {
         case .connected:
             await queue.pushOpFront(DiscoverServicesOp())
-            onStateChangedBlock?(self, newState)
+            onStateChangedClosure?(self, newState)
             await startNextOp()
         case .connecting:
             break; // do nothing
@@ -59,19 +60,19 @@ open class BlemDevice: NSObject, CBPeripheralDelegate {
                 await queue.getCurrentOp()?.abort(self, .disconnected)
                 _ = await queue.popCurrentOp()
             }
-            onStateChangedBlock?(self, newState)
+            onStateChangedClosure?(self, newState)
         case .failedToConnect:
             while await queue.count() > 0 {
                 await queue.getCurrentOp()?.abort(self, .failedToConnect)
                 _ = await queue.popCurrentOp()
             }
-            onStateChangedBlock?(self, newState)
+            onStateChangedClosure?(self, newState)
         case .bleNotAvailable:
             while await queue.count() > 0 {
                 await queue.getCurrentOp()?.abort(self, .bleNotAvailable)
                 _ = await queue.popCurrentOp()
             }
-            onStateChangedBlock?(self, newState)
+            onStateChangedClosure?(self, newState)
         }
     }
     

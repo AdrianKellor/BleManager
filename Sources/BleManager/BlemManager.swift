@@ -1,14 +1,11 @@
 //
-//  BleManager.swift
+//  Blem.swift
 //
 //  Created by Adrian Kellor on 2/1/2023.
 //
 
 import Foundation
 import CoreBluetooth
-import UIKit
-
-// params: periperal, advertisementData, rssi
 
 public class Blem: NSObject {
     
@@ -22,12 +19,9 @@ public class Blem: NSObject {
     fileprivate override init() {
         super.init()
         
-        let applicationState = UIApplication.shared.applicationState
         self.managerIsStarting = true
         self.manager = CBCentralManager(delegate: self,
-                                        queue: nil,
-                                        options: [CBCentralManagerOptionShowPowerAlertKey:
-                                                    NSNumber(value: applicationState == .active)])
+                                        queue: nil)
         
     }
     

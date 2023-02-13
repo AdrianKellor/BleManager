@@ -1,5 +1,5 @@
 //
-//  BleScanner.swift
+//  BlemScanner.swift
 //
 //  Created by Adrian Kellor on 2/1/2023.
 //
@@ -8,23 +8,6 @@ import Foundation
 import CoreBluetooth
 
 
-//class BleScan {
-//
-//    typealias onDiscoverType = (BlemDevice) -> ()
-//    typealias onStopType     = () -> ()
-//
-//    internal var onDiscoverClosure: onDiscoverType?
-//    internal var onStop: onStopType?
-//
-//    internal func found(device: BlemDevice, advertisementData: [String: Any]) {
-//        onDiscoverClosure?(device)
-//    }
-//
-//    internal func stopped() {
-//        onStop?()
-//    }
-//
-//}
 
 fileprivate enum BlemScanState {
     case waiting, scanning, stopped, failed;
@@ -146,6 +129,26 @@ public actor BlemScanner: NSObject {
     
 
 }
+
+// deprecated code
+
+//class BleScan {
+//
+//    typealias onDiscoverType = (BlemDevice) -> ()
+//    typealias onStopType     = () -> ()
+//
+//    internal var onDiscoverClosure: onDiscoverType?
+//    internal var onStop: onStopType?
+//
+//    internal func found(device: BlemDevice, advertisementData: [String: Any]) {
+//        onDiscoverClosure?(device)
+//    }
+//
+//    internal func stopped() {
+//        onStop?()
+//    }
+//
+//}
 
 //actor BleScanSession {
 //    
