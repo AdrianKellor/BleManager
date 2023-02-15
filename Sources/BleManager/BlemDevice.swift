@@ -22,7 +22,7 @@ open class BlemDevice: NSObject, CBPeripheralDelegate {
     public var autoDiscoverServices: [CBUUID]?
 
     internal var characteristics = [CBCharacteristic]()
-    internal let peripheral: CBPeripheral
+    public let peripheral: CBPeripheral
 
     private let queue = BleOpQueue()
     private var onStateChangedClosure: BlemDeviceStateChangedBlock?
@@ -105,12 +105,6 @@ open class BlemDevice: NSObject, CBPeripheralDelegate {
         }
     }
 
-    // MARK: peripheral input delegate methods
-    
-    public func readValue(for char: CBCharacteristic) {
-        peripheral.readValue(for: char)
-    }
-    
     // MARK: peripheral output delegate methods
     
     public func peripheralDidUpdateName(_ peripheral: CBPeripheral) {

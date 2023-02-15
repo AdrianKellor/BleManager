@@ -21,7 +21,7 @@ Add the following code somewhere in your app startup code to initialize BleManag
 _ = Blem.instance
 ```
 
-## Scanning
+## Scanning for devices
 
 This code begins a 10 second scanning for devices that support YOUR_SERVICE_CBUUID.
 
@@ -65,12 +65,92 @@ await Blem.instance.newScanner(seconds: 10, services: [YOUR_SERVICE_CBUUID])
     .start();
 ```                
 
+## Using a device
+
+A BleDevice instance is an abstraction of a physical BLE device found during a scan. While you
+probably want to read & write characteristics, in BleManager those actions are performed with
+separate classes called a BleOp. The device instance itself is only directly used to control
+the connection.
+
+The following code sets up an connection event listener for the device, then the connect process is initiated. 
+
+```swift
+device.onStateChanged { device, state in
+    switch (state) {
+    case .connected:
+        // schedule BleOp to read settings
+        device.queueOp(...)
+    case .failedToConnect:
+        // keep trying to connect
+        device.connect()
+    case .disconnected:
+        ...
+    case .connecting:
+        ...
+    case .bleNotAvailable:
+        ...
+    }
+}
+device.connect()
+```
+
+
+## Device Operations (Ops)
+
+BleOp classes are where the device interactions occur. Each device has it's own queue of 
+BleOps that are executed in order, meaning each Op class can assume it's the only thing running
+against it's device. You can create your own classes by extending BleOp.
+ 
+The function start(_ device: BlemDevice) will be called when the instance is at the front of a device's queue and the device is connected. The function abort(_ device: BlemDevice, _ reason: BlemOpAbortReason) is called when Ops on a device have been prematurely stopped, often due to
+unexpected device disconnections. The abort(...) method can be called before start(...) in some situations, for example when a device disconnects when multiple Ops have been queued.
+
+All CBPeripheralDelegate callback methods are available as BleOp functions that can be overriden in your own classes.
+
+```swift
+public class ReadStringOp: BlemDeviceOp {
+    
+    private let uuid: CBUUID
+    
+    public init(uuid: CBUUID) {
+        self.uuid = uuid
+    }
+    
+    public override func start(_ device: BlemDevice) -> BlemOpResponse {
+        if let char = device.characteristic(uuid) {
+            device.peripheral.readValue(for: char)
+            return .ok
+        } else {
+            return .complete
+        }
+    }
+    
+    public override func abort(_ device: BlemDevice, _ reason: BlemOpAbortReason) {
+        // do nothing
+    }
+    
+    override public func peripheral(_ device: BlemDevice, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) -> BlemOpResponse {
+        // better safe than sorry
+        guard let value = characteristic.value else { return .complete }
+
+        // process the string
+        if let str = String(data: value, encoding: .utf8)?.trimmingCharacters(in: CharacterSet.controlCharacters) {
+            // do something with str
+        }
+        
+        return .complete
+    }
+    
+    
+}
+```
 
 TODO
 
 * Review callback closures and change any to weak references where needed.
 * Implement additions to handle BLE notifications
-
+* NoOp op
+* Clear/Reset Device List in Blem?
+* Support background BLE mode
 
 FAQ
 
