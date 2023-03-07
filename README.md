@@ -10,7 +10,7 @@ of multiple read/write processes, state resets with unexpected disconnects, etc.
 Your BleManager allows for focused classes that can assume they are the only interactions 
 happening with a device. That makes your application code easier to write, read and maintain.
 
-
+NOTE: This library is working but still in development, more features may be added in the future as I have time.
 # Quick Start
 
 ## Initializing
