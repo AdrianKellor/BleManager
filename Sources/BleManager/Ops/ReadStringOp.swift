@@ -13,7 +13,8 @@ public class ReadStringOp: BlemDeviceOp {
     private let uuid: CBUUID
     private let closure: (String?, String?) -> ()
     
-    public init(uuid: CBUUID, _ closure: @escaping (String?, String?) -> ()) {
+    public init(uuid: CBUUID,
+                _ closure: @escaping (String?, String?) -> ()) {
         self.uuid = uuid
         self.closure = closure
     }
@@ -27,11 +28,14 @@ public class ReadStringOp: BlemDeviceOp {
         }
     }
     
-    public override func abort(_ device: BlemDevice, _ reason: BlemOpAbortReason) {
+    public override func abort(_ device: BlemDevice,
+                               _ reason: BlemOpAbortReason) {
         // do nothing
     }
     
-    override public func peripheral(_ device: BlemDevice, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) -> BlemOpResponse {
+    override public func peripheral(_ device: BlemDevice,
+                                    didUpdateValueFor characteristic: CBCharacteristic,
+                                    error: Error?) -> BlemOpResponse {
         guard let value = characteristic.value else {
             return .complete
         }

@@ -11,7 +11,10 @@ public enum BlemDeviceState {
     case connected, connecting, disconnected, failedToConnect, bleNotAvailable
 }
 
-public typealias BlemDeviceStateChangedBlock = ((BlemDevice, BlemDeviceState) -> ())
+public struct BlemDeviceStateChangeBundle {
+    let device: BlemDevice
+    let newState: BlemDeviceState
+}
 
 open class BlemDevice: NSObject, CBPeripheralDelegate {
 
@@ -25,13 +28,14 @@ open class BlemDevice: NSObject, CBPeripheralDelegate {
     public let peripheral: CBPeripheral
 
     private let queue = BleOpQueue()
-    private var onStateChangedClosure: BlemDeviceStateChangedBlock?
+    private var onStateChangedClosure: ((BlemDeviceStateChangeBundle) -> ())?
     
-    public init(peripheral: CBPeripheral, advertisementData: [String : Any], rssi: NSNumber) {
-        self.peripheral = peripheral
+    // FIXME, is there a way to require sub-classes to override this?
+    public init(_ bundle: BlemDiscoveryBundle) {
+        self.peripheral = bundle.peripheral
         self.name = peripheral.name ?? "Unknown"
-        self.advertisementData = advertisementData
-        self.rssi = rssi
+        self.advertisementData = bundle.advertisementData
+        self.rssi = bundle.rssi
         uuid = UUID(uuidString: peripheral.identifier.uuidString)!
         super.init()
         peripheral.delegate = self
@@ -43,7 +47,7 @@ open class BlemDevice: NSObject, CBPeripheralDelegate {
     
     // MARK: State / Connection
     
-    public func onStateChanged(_ closure: @escaping BlemDeviceStateChangedBlock) {
+    public func onStateChanged(_ closure: @escaping (BlemDeviceStateChangeBundle) -> ()) {
         onStateChangedClosure = closure
     }
     
@@ -51,7 +55,7 @@ open class BlemDevice: NSObject, CBPeripheralDelegate {
         switch newState {
         case .connected:
             await queue.pushOpFront(DiscoverServicesOp())
-            onStateChangedClosure?(self, newState)
+            onStateChangedClosure?(BlemDeviceStateChangeBundle(device: self, newState: newState))
             await startNextOp()
         case .connecting:
             break; // do nothing
@@ -60,19 +64,19 @@ open class BlemDevice: NSObject, CBPeripheralDelegate {
                 await queue.getCurrentOp()?.abort(self, .disconnected)
                 _ = await queue.popCurrentOp()
             }
-            onStateChangedClosure?(self, newState)
+            onStateChangedClosure?(BlemDeviceStateChangeBundle(device: self, newState: newState))
         case .failedToConnect:
             while await queue.count() > 0 {
                 await queue.getCurrentOp()?.abort(self, .failedToConnect)
                 _ = await queue.popCurrentOp()
             }
-            onStateChangedClosure?(self, newState)
+            onStateChangedClosure?(BlemDeviceStateChangeBundle(device: self, newState: newState))
         case .bleNotAvailable:
             while await queue.count() > 0 {
                 await queue.getCurrentOp()?.abort(self, .bleNotAvailable)
                 _ = await queue.popCurrentOp()
             }
-            onStateChangedClosure?(self, newState)
+            onStateChangedClosure?(BlemDeviceStateChangeBundle(device: self, newState: newState))
         }
     }
     

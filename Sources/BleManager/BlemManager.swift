@@ -144,7 +144,8 @@ fileprivate actor BleDeviceList {
         } ) {
             return found
         } else {
-            let newDevice = await scanner.createDevice(peripheral, advertisementData, rssi)
+            let scanBundle = BlemDiscoveryBundle(peripheral: peripheral, advertisementData: advertisementData, rssi: rssi)
+            let newDevice = await scanner.createDevice(scanBundle)
             self.devices.append(newDevice)
             return newDevice
         }

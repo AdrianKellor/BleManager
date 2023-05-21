@@ -13,7 +13,11 @@ fileprivate enum BlemScanState {
     case waiting, scanning, stopped, failed;
 }
 
-public typealias BlemDeviceCreator = (CBPeripheral, [String: Any], NSNumber) -> BlemDevice?
+public struct BlemDiscoveryBundle {
+    let peripheral: CBPeripheral
+    let advertisementData: [String : Any];
+    let rssi: NSNumber
+}
 
 public actor BlemScanner: NSObject {
 
@@ -41,18 +45,18 @@ public actor BlemScanner: NSObject {
 
     // New device creation
     
-    private var discoveryCreatorClosure: BlemDeviceCreator?
-    
-    public func onDiscoveryCreator(_ closure: @escaping BlemDeviceCreator) -> Self {
+    private var discoveryCreatorClosure: ((BlemDiscoveryBundle) -> BlemDevice?)?
+
+    public func onDiscoveryCreator(_ closure: @escaping (BlemDiscoveryBundle) -> BlemDevice?) -> Self {
         discoveryCreatorClosure = closure
         return self
     }
 
-    internal func createDevice(_ peripheral: CBPeripheral, _ advertisementData: [String : Any], _ rssi: NSNumber) -> BlemDevice {
-        if let newDevice = discoveryCreatorClosure?(peripheral, advertisementData, rssi) {
+    internal func createDevice(_ bundle: BlemDiscoveryBundle) -> BlemDevice {
+        if let newDevice = discoveryCreatorClosure?(bundle) {
             return newDevice
         } else {
-            return BlemDevice(peripheral: peripheral, advertisementData: advertisementData, rssi: rssi)
+            return BlemDevice(bundle)
         }
     }
 
