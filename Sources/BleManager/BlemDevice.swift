@@ -28,6 +28,7 @@ open class BlemDevice: NSObject, CBPeripheralDelegate {
     public let peripheral: CBPeripheral
 
     private let queue = BleOpQueue()
+    private var notifyManager: BlemNotifyManager!
     private var onStateChangedClosure: ((BlemDeviceStateChangeBundle) -> ())?
     
     // FIXME, is there a way to require sub-classes to override this?
@@ -38,6 +39,7 @@ open class BlemDevice: NSObject, CBPeripheralDelegate {
         self.rssi = bundle.rssi
         uuid = UUID(uuidString: peripheral.identifier.uuidString)!
         super.init()
+        self.notifyManager = BlemNotifyManager(self)
         peripheral.delegate = self
     }
     
@@ -109,6 +111,14 @@ open class BlemDevice: NSObject, CBPeripheralDelegate {
         }
     }
 
+    // MARK: Notifications
+    
+    public func notify(_ observer: BlemNotifyObserver) {
+        Task.init {
+            return await notifyManager.notify(observer)
+        }
+    }
+    
     // MARK: peripheral output delegate methods
     
     public func peripheralDidUpdateName(_ peripheral: CBPeripheral) {
@@ -172,6 +182,7 @@ open class BlemDevice: NSObject, CBPeripheralDelegate {
             if let result = await queue.getCurrentOp()?.peripheral(self, didUpdateValueFor: characteristic, error: error), result == .complete {
                 await startNextOp()
             }
+            await self.notifyManager.peripheral(peripheral, didUpdateValueFor: characteristic, error: error)
         }
     }
 
