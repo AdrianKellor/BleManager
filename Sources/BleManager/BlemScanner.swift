@@ -21,6 +21,8 @@ public struct BlemDiscoveryBundle {
 
 public actor BlemScanner: NSObject {
 
+    // TODO make this a class with a weakOwner reference
+    
     private var state = BlemScanState.waiting
     
     private var manager: Blem

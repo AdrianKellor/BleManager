@@ -11,11 +11,11 @@ public basicNotify() {
     // assuming a device is found and connected, subscribe to a notification
     BlemDevice device = new BlemDevice()
     
-    device.notify(
+    device.notifyManager.notify(
         BlemNotifyObserver(weakOwner: self, CBUUID(string: "1234"))
-        .onData {data ->
+        .onData { data ->
             
-        }.onError {error ->
+        }.onError { error ->
             
         }.onStopped {
             
