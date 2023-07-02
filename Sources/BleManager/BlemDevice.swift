@@ -12,8 +12,8 @@ public enum BlemDeviceState {
 }
 
 public struct BlemDeviceStateChangeBundle {
-    let device: BlemDevice
-    let newState: BlemDeviceState
+    public let device: BlemDevice
+    public let newState: BlemDeviceState
 }
 
 open class BlemDevice: NSObject, CBPeripheralDelegate {
@@ -82,13 +82,13 @@ open class BlemDevice: NSObject, CBPeripheralDelegate {
         }
     }
     
-    public func connect() {
+    open func connect() {
         if peripheral.state != .connected {
             Blem.instance.connect(self)
         }
     }
     
-    public func disconnect() {
+    open func disconnect() {
         if peripheral.state != .disconnected {
             Blem.instance.disconnect(self)
         }

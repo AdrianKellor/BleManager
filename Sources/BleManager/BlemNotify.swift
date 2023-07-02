@@ -19,14 +19,11 @@ enum BlemNotifyError: Error {
 public class BlemNotifyObserver {
     public let uuid: CBUUID;
     
-    // TODO does this need an onStop closure?
-    internal weak var owner: AnyObject?
     internal var onDataClosure: ((Data?) -> ())?
     internal var onStopped: (() -> ())?
     internal var onError: ((String) -> ())?
     
-    init(weakOwner: AnyObject, _ uuid: CBUUID) {
-        self.owner = weakOwner
+    init(_ uuid: CBUUID) {
         self.uuid = uuid
     }
     
@@ -42,21 +39,18 @@ public class BlemNotifyObserver {
         onError = closure
         return self
     }
-    
-    // TODO callback BlemNotificationManager when onData is set?
 }
 
 public actor BlemNotifyManager {
     
     private let device: BlemDevice
-    private var observers = [BlemNotifyObserver]()
-    private var activeUuids = [CBUUID]()
+    private var weakObservers = WeakOwnerList<BlemNotifyObserver>()
     
     internal init(_ device: BlemDevice) {
         self.device = device
     }
     
-    public func notify(_ observer: BlemNotifyObserver) async throws {
+    public func notify(weakOwner: AnyObject, _ observer: BlemNotifyObserver) async throws {
         guard let deviceChar = device.characteristics.first(where: {char in char.uuid == observer.uuid}) else {
             throw BlemNotifyError.characteristicNotFound
         }
@@ -65,12 +59,11 @@ public actor BlemNotifyManager {
         if observer.onStopped == nil { throw BlemNotifyError.noOnStoppedDefined }
         if observer.onError == nil { throw BlemNotifyError.noOnErrorDefined }
         
-        if !activeUuids.contains(where: {cbuuid in cbuuid == observer.uuid}) {
+        if await !weakObservers.allItems().contains(where: { $0.uuid == observer.uuid }) {
             device.peripheral.setNotifyValue(true, for: deviceChar)
-            activeUuids.append(observer.uuid)
         }
         
-        observers.append(observer)
+        await weakObservers.add(weakOwner: weakOwner, observer)
     }
     
     internal func stop(_ uuid: CBUUID) async {
@@ -82,64 +75,23 @@ public actor BlemNotifyManager {
         // stop notification
         device.peripheral.setNotifyValue(false, for: deviceChar)
         
-        // remove char from active list
-        activeUuids.removeAll(where: { cbuuid in cbuuid == uuid } )
-        
         // Notify observers of this stop
-        for observer in observers {
-            if observer.owner != nil, observer.uuid == uuid {
+        await weakObservers.forEach { observer in
+            if observer.uuid == uuid {
                 observer.onStopped?()
             }
         }
         
         // Remove observers for stopped uuid
-        observers.removeAll { observer in observer.uuid == uuid }
+        await weakObservers.removeAll { observer in observer.uuid == uuid }
     }
     
     internal func peripheral(_ peripheral: CBPeripheral,
                              didUpdateValueFor characteristic: CBCharacteristic,
                              error: Error?) async {
-
-        var cleanupObservers = false
-        for observer in observers {
-            if observer.owner == nil {
-                cleanupObservers = true
-            } else if observer.uuid == characteristic.uuid {
-                observer.onDataClosure?(characteristic.value)
-            }
-        }
-        
-        if cleanupObservers {
-            observers.removeAll { observer in observer.owner == nil }
-        }
-
-        for activeUuid in activeUuids {
-            if observers.contains(where: { observer in observer.uuid == activeUuid }) {
-                
-            }
-                
+        await weakObservers.forEach { observer in
+            observer.onDataClosure?(characteristic.value)
         }
     }
-
-//    private func cleanupUnused() {
-//
-//        // first
-//
-//        // Notify observers of this stop
-//        for observer in observers {
-//            if observer.owner != nil, !uuidIsActive(observer.uuid) {
-//
-//                observer.onStopped?()
-//            }
-//        }
-//
-//        // Remove observers for stopped uuid
-//        observers.removeAll { observer in !uuidIsActive(observer.uuid) }
-//
-//    }
-//
-//    private func uuidIsActive(_ uuid: CBUUID) -> Bool {
-//        activeUuids.contains(where: {activeUuid in activeUuid == uuid})
-//    }
     
 }

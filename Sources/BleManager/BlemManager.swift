@@ -25,6 +25,8 @@ public class Blem: NSObject {
         
     }
     
+    // TODO: Add observer list for CBManager state changes
+    
     var activeScanner: BlemScanner?
     
     public func newScanner(seconds: Int, services: [CBUUID]) -> BlemScanner {
@@ -55,8 +57,16 @@ public class Blem: NSObject {
             manager?.stopScan()
         }
     }
+
+    fileprivate let stateChangeListeners = WeakOwnerList<((CBManagerState) -> ())>();
     
+    public func addStateChangeListener(weakOwner: AnyObject, _ closure: @escaping ((CBManagerState) -> ())) {
+        Task.init {
+            await stateChangeListeners.add(weakOwner: weakOwner, closure)
+        }
+    }
 }
+
 
 extension Blem: CBCentralManagerDelegate {
 
@@ -65,6 +75,9 @@ extension Blem: CBCentralManagerDelegate {
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         // TODO: needs to handle active scanner
         managerIsStarting = false
+        Task.init {
+            await stateChangeListeners.forEach { closure in closure(central.state) }
+        }
     }
 
     // Scanning

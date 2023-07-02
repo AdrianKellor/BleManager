@@ -21,10 +21,12 @@ open class BlemDeviceOp {
         
     }
     
+    // TODO: Refactor to make this required
     open func start(_ device: BlemDevice) -> BlemOpResponse {
         fatalError("Must override BleDeviceOp.start method")
     }
     
+    // TODO: Refactor to make this required
     open func abort(_ device: BlemDevice, _ reason: BlemOpAbortReason) {
         fatalError("Must override BleDeviceOp.abort method")
     }

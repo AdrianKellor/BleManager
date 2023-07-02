@@ -14,9 +14,9 @@ fileprivate enum BlemScanState {
 }
 
 public struct BlemDiscoveryBundle {
-    let peripheral: CBPeripheral
-    let advertisementData: [String : Any];
-    let rssi: NSNumber
+    public let peripheral: CBPeripheral
+    public let advertisementData: [String : Any];
+    public let rssi: NSNumber
 }
 
 public actor BlemScanner: NSObject {
@@ -45,28 +45,17 @@ public actor BlemScanner: NSObject {
         }
     }
 
-    // New device creation
+    // Callbacks
     
     private var discoveryCreatorClosure: ((BlemDiscoveryBundle) -> BlemDevice?)?
+    private var onDiscoverClosure: ((BlemDevice) -> ())?
+    private var onFinishedClosure: (() -> ())?
+    private var onFailedClosure: (() -> ())?
 
     public func onDiscoveryCreator(_ closure: @escaping (BlemDiscoveryBundle) -> BlemDevice?) -> Self {
         discoveryCreatorClosure = closure
         return self
     }
-
-    internal func createDevice(_ bundle: BlemDiscoveryBundle) -> BlemDevice {
-        if let newDevice = discoveryCreatorClosure?(bundle) {
-            return newDevice
-        } else {
-            return BlemDevice(bundle)
-        }
-    }
-
-    // Callbacks
-    
-    private var onDiscoverClosure: ((BlemDevice) -> ())?
-    private var onFinishedClosure: (() -> ())?
-    private var onFailedClosure: (() -> ())?
 
     public func onDiscover(_ closure: @escaping (BlemDevice) -> ()) -> Self {
         onDiscoverClosure = closure
@@ -83,8 +72,6 @@ public actor BlemScanner: NSObject {
         return self
     }
 
-    
-    
     // public functions
     
     public func stop() async {
@@ -116,6 +103,14 @@ public actor BlemScanner: NSObject {
         }
     }
     
+    internal func createDevice(_ bundle: BlemDiscoveryBundle) -> BlemDevice {
+        if let newDevice = discoveryCreatorClosure?(bundle) {
+            return newDevice
+        } else {
+            return BlemDevice(bundle)
+        }
+    }
+
     internal func discovered(device: BlemDevice) {
         if let discoverClosure = onDiscoverClosure {
             discoverClosure(device)
