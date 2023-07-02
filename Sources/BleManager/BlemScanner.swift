@@ -77,7 +77,7 @@ public actor BlemScanner: NSObject {
     public func stop() async {
         switch(state) {
         case .waiting, .scanning:
-            await manager.endCurrentScan(self)
+            await manager.endScanner(self)
         case .stopped, .failed:
             break;
         }
@@ -124,7 +124,7 @@ public actor BlemScanner: NSObject {
 
     private func failed() async {
         state = .failed
-        await manager.endCurrentScan(self)
+        await manager.endScanner(self)
         onFailedClosure?()
     }
     

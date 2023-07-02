@@ -25,6 +25,13 @@ public class Blem: NSObject {
         
     }
     
+    // Correct syntax for read only property?
+    public var currentBleState: CBManagerState {
+        get {
+            manager.state
+        }
+    }
+    
     // TODO: Add observer list for CBManager state changes
     
     var activeScanner: BlemScanner?
@@ -49,7 +56,7 @@ public class Blem: NSObject {
         await activeScanner?.startedScanning()
     }
     
-    internal func endCurrentScan(_ scanner: BlemScanner) async {
+    internal func endScanner(_ scanner: BlemScanner) async {
         // TODO, add a safety to shutdown scanning if running too long
         if let active = activeScanner, active === scanner {
             await activeScanner?.finished()
@@ -58,6 +65,12 @@ public class Blem: NSObject {
         }
     }
 
+    public func endActiveScanner() async {
+        if let scanner = activeScanner {
+            await self.endScanner(scanner)
+        }
+    }
+    
     fileprivate let stateChangeListeners = WeakOwnerList<((CBManagerState) -> ())>();
     
     public func addStateChangeListener(weakOwner: AnyObject, _ closure: @escaping ((CBManagerState) -> ())) {
